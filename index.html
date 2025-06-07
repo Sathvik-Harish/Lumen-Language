@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lumen Core Interpreter</title>
+  <style>
+    body {
+      background-color: #1e1e1e;
+      color: #f5f5f5;
+      font-family: monospace;
+      padding: 20px;
+    }
+    textarea {
+      width: 100%;
+      height: 200px;
+      background-color: #2e2e2e;
+      color: #f5f5f5;
+      padding: 10px;
+      border: 1px solid #444;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px;
+      background-color: #008cba;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    pre {
+      background-color: #111;
+      padding: 10px;
+      margin-top: 20px;
+      white-space: pre-wrap;
+      border-left: 4px solid #008cba;
+    }
+    #help {
+      display: none;
+      background-color: #222;
+      padding: 15px;
+      margin-top: 15px;
+      border: 1px solid #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>Lumen Core Interpreter</h1>
+  <textarea id="code" placeholder="Type your Lumen code here..."></textarea>
+  <br>
+  <button onclick="runLumen()">Run</button>
+  <button onclick="toggleHelp()">Help</button>
+  <pre id="output"></pre>
+  <div id="help">
+    <h3>📘 Lumen Syntax Reference</h3>
+    <ul>
+      <li><strong>"text"</strong> → prints the string</li>
+      <li><strong>2 + 2</strong> → evaluates arithmetic</li>
+      <li><strong>name = "value"</strong> → assigns variable</li>
+      <li><strong>name</strong> → prints variable's value</li>
+      <li><strong>repeat(n)(...)</strong> → repeat n times</li>
+      <li><strong>repeat(...)</strong> → infinite repeat (5x safety cap)</li>
+      <li><strong>wait(seconds)</strong> → wait in seconds (e.g., wait(0.5))</li>
+      <li><strong>print("message")</strong> → prints a message (alias)</li>
+      <li><strong>clear()</strong> → clears the output</li>
+      <li><strong>uppercase("text")</strong> → returns uppercase text</li>
+      <li><strong>lowercase("text")</strong> → returns lowercase text</li>
+      <li><strong>reverse("text")</strong> → reverses a string</li>
+    </ul>
+  </div>
+
+  <script>
+    const variables = {};
+
+    function toggleHelp() {
+      const help = document.getElementById("help");
+      help.style.display = help.style.display === "none" ? "block" : "none";
+    }
+
+    async function runLumen() {
+      const code = document.getElementById("code").value;
+      const lines = code.trim().split(/\r?\n/);
+      let output = "";
+
+      async function evaluate(line) {
+        line = line.trim();
+
+        // Infinite repeat
+        if (/^repeat\s*\(.*\)$/.test(line)) {
+          const inner = line.match(/^repeat\s*\((.*)\)$/)[1].trim();
+          return Array(5).fill(await evaluate(inner)).join("\n");
+        }
+
+        // Finite repeat
+        if (/^repeat\s*\d+\s*\(.*\)$/.test(line)) {
+          const match = line.match(/^repeat\s*(\d+)\s*\((.*)\)$/);
+          const count = parseInt(match[1]);
+          const inner = match[2].trim();
+          return Array(count).fill(await evaluate(inner)).join("\n");
+        }
+
+        // Wait command (in seconds)
+        if (/^wait\s*\((\d*\.?\d+)\)$/.test(line)) {
+          const seconds = parseFloat(line.match(/^wait\s*\((\d*\.?\d+)\)$/)[1]);
+          await new Promise(res => setTimeout(res, seconds * 1000));
+          return "";
+        }
+
+        // Variable assignment
+        if (/^\w+\s*=\s*".*"$/.test(line)) {
+          const [key, val] = line.split("=").map(s => s.trim());
+          variables[key] = val.slice(1, -1);
+          return "";
+        }
+
+        // Use variable
+        if (/^\w+$/.test(line) && variables[line] !== undefined) {
+          return variables[line];
+        }
+
+        // String literal
+        if (/^".*"$/.test(line)) {
+          return line.slice(1, -1);
+        }
+
+        // Built-in functions
+        if (/^print\(".*"\)$/.test(line)) {
+          return line.slice(7, -2);
+        }
+
+        if (/^clear\(\)$/.test(line)) {
+          output = "";
+          return "";
+        }
+
+        if (/^uppercase\(".*"\)$/.test(line)) {
+          return line.slice(10, -2).toUpperCase();
+        }
+
+        if (/^lowercase\(".*"\)$/.test(line)) {
+          return line.slice(10, -2).toLowerCase();
+        }
+
+        if (/^reverse\(".*"\)$/.test(line)) {
+          return line.slice(9, -2).split("").reverse().join("");
+        }
+
+        // Arithmetic
+        try {
+          return eval(line);
+        } catch {
+          return `[Error] Invalid syntax: ${line}`;
+        }
+      }
+
+      for (const line of lines) {
+        if (line.trim() === "") continue;
+        const result = await evaluate(line);
+        if (result !== "") output += result + "\n";
+      }
+
+      document.getElementById("output").textContent = output;
+    }
+  </script>
+</body>
+</html>
