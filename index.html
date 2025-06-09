@@ -3,163 +3,207 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lumen Core Interpreter</title>
+  <title>Lumen Studio</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/eclipse.min.css">
   <style>
+    :root {
+      --bg-color: #1e1e1e;
+      --text-color: #f5f5f5;
+      --panel-bg: #2e2e2e;
+      --border-color: #444;
+      --accent: #008cba;
+    }
+    .light {
+      --bg-color: #f5f5f5;
+      --text-color: #1e1e1e;
+      --panel-bg: #fff;
+      --border-color: #ccc;
+      --accent: #007acc;
+    }
     body {
-      background-color: #1e1e1e;
-      color: #f5f5f5;
+      background-color: var(--bg-color);
+      color: var(--text-color);
       font-family: monospace;
+      margin: 0;
+    }
+    .tabs {
+      display: flex;
+      background-color: var(--panel-bg);
+      border-bottom: 1px solid var(--border-color);
+    }
+    .tab {
+      padding: 10px 20px;
+      cursor: pointer;
+      background-color: var(--panel-bg);
+      color: var(--text-color);
+      border: none;
+    }
+    .tab.active {
+      background-color: var(--bg-color);
+      border-bottom: 2px solid var(--accent);
+    }
+    .panel {
+      display: none;
       padding: 20px;
     }
-    textarea {
-      width: 100%;
-      height: 200px;
-      background-color: #2e2e2e;
-      color: #f5f5f5;
-      padding: 10px;
-      border: 1px solid #444;
-    }
-    button {
-      margin-top: 10px;
-      padding: 10px;
-      background-color: #008cba;
-      color: white;
-      border: none;
-      cursor: pointer;
+    .panel.active {
+      display: block;
     }
     pre {
       background-color: #111;
       padding: 10px;
       margin-top: 20px;
       white-space: pre-wrap;
-      border-left: 4px solid #008cba;
+      border-left: 4px solid var(--accent);
     }
-    #help {
-      display: none;
-      background-color: #222;
-      padding: 15px;
-      margin-top: 15px;
-      border: 1px solid #555;
+    .CodeMirror {
+      height: auto;
+      border: 1px solid var(--border-color);
     }
   </style>
 </head>
 <body>
-  <h1>Lumen Core Interpreter</h1>
-  <textarea id="code" placeholder="Type your Lumen code here..."></textarea>
-  <br>
-  <button onclick="runLumen()">Run</button>
-  <button onclick="toggleHelp()">Help</button>
-  <pre id="output"></pre>
-  <div id="help">
-    <h3>📘 Lumen Syntax Reference</h3>
-    <ul>
-      <li><strong>"text"</strong> → prints the string</li>
-      <li><strong>2 + 2</strong> → evaluates arithmetic</li>
-      <li><strong>name = "value"</strong> → assigns variable</li>
-      <li><strong>name</strong> → prints variable's value</li>
-      <li><strong>repeat(n)(...)</strong> → repeat n times</li>
-      <li><strong>repeat(...)</strong> → infinite repeat (5x safety cap)</li>
-      <li><strong>wait(seconds)</strong> → wait in seconds (e.g., wait(0.5))</li>
-      <li><strong>print("message")</strong> → prints a message (alias)</li>
-      <li><strong>clear()</strong> → clears the output</li>
-      <li><strong>uppercase("text")</strong> → returns uppercase text</li>
-      <li><strong>lowercase("text")</strong> → returns lowercase text</li>
-      <li><strong>reverse("text")</strong> → reverses a string</li>
-    </ul>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('editor')">📝 Code Editor</button>
+    <button class="tab" onclick="switchTab('rayshell')">💡 RayShell Terminal</button>
   </div>
-
+  <div id="editor" class="panel active">
+    <h2>Lumen Code Editor</h2>
+    <textarea id="editorCode"></textarea>
+  </div>
+  <div id="rayshell" class="panel">
+    <h2>RayShell Terminal</h2>
+    <input type="text" id="codeInput" placeholder="Type Lumen code or command here and press Enter...">
+    <pre id="output"></pre>
+    <div id="help" style="display:none">
+      <h3>📘 Lumen Syntax Reference</h3>
+      <ul>
+        <li><strong>"text"</strong> → prints the string</li>
+        <li><strong>2 + 2</strong> → evaluates arithmetic</li>
+        <li><strong>name = "value"</strong> → assigns variable</li>
+        <li><strong>name</strong> → prints variable's value</li>
+        <li><strong>repeat n"..."</strong> → repeat n times</li>
+        <li><strong>repeat"..."</strong> → infinite repeat (5x safety cap)</li>
+        <li><strong>wait "seconds"</strong> → wait in seconds (e.g., wait"0.5")</li>
+        <li><strong>print"text"</strong> → prints a message</li>
+        <li><strong>clear</strong> → clears the output</li>
+        <li><strong>uppercase"text"</strong> → returns uppercase text</li>
+        <li><strong>lowercase"text"</strong> → returns lowercase text</li>
+        <li><strong>reverse"text"</strong> → reverses a string</li>
+      </ul>
+    </div>
+    <div id="commands" style="display:none">
+      <h3>🧭 RayShell Commands</h3>
+      <ul>
+        <li>/run – Run the code</li>
+        <li>/help – Open the help tab</li>
+        <li>/commands – Show all commands</li>
+        <li>/clear_o – Clear output</li>
+        <li>/clear_all – Clear all code (with double confirmation)</li>
+        <li>/del lineX – Delete line number X</li>
+        <li>/console – Show error logs (errors hidden from output)</li>
+        <li>/lighting_toggle – Toggle between light/dark mode</li>
+      </ul>
+    </div>
+    <div id="console" style="display:none"></div>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
   <script>
-    const variables = {};
+    const codeInput = document.getElementById("codeInput");
+    const output = document.getElementById("output");
+    const help = document.getElementById("help");
+    const commands = document.getElementById("commands");
+    const consoleLog = document.getElementById("console");
 
-    function toggleHelp() {
-      const help = document.getElementById("help");
-      help.style.display = help.style.display === "none" ? "block" : "none";
+    const editor = CodeMirror.fromTextArea(document.getElementById("editorCode"), {
+      lineNumbers: true,
+      mode: "javascript",
+      theme: "dracula"
+    });
+
+    function switchTab(id) {
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(panel => panel.classList.remove('active'));
+      document.querySelector(`[onclick="switchTab('${id}')"]`).classList.add('active');
+      document.getElementById(id).classList.add('active');
     }
 
-    async function runLumen() {
-      const code = document.getElementById("code").value;
-      const lines = code.trim().split(/\r?\n/);
-      let output = "";
-
-      async function evaluate(line) {
-        line = line.trim();
-
-        // Infinite repeat
-        if (/^repeat\s*\(.*\)$/.test(line)) {
-          const inner = line.match(/^repeat\s*\((.*)\)$/)[1].trim();
-          return Array(5).fill(await evaluate(inner)).join("\n");
-        }
-
-        // Finite repeat
-        if (/^repeat\s*\d+\s*\(.*\)$/.test(line)) {
-          const match = line.match(/^repeat\s*(\d+)\s*\((.*)\)$/);
-          const count = parseInt(match[1]);
-          const inner = match[2].trim();
-          return Array(count).fill(await evaluate(inner)).join("\n");
-        }
-
-        // Wait command (in seconds)
-        if (/^wait\s*\((\d*\.?\d+)\)$/.test(line)) {
-          const seconds = parseFloat(line.match(/^wait\s*\((\d*\.?\d+)\)$/)[1]);
-          await new Promise(res => setTimeout(res, seconds * 1000));
-          return "";
-        }
-
-        // Variable assignment
-        if (/^\w+\s*=\s*".*"$/.test(line)) {
-          const [key, val] = line.split("=").map(s => s.trim());
-          variables[key] = val.slice(1, -1);
-          return "";
-        }
-
-        // Use variable
-        if (/^\w+$/.test(line) && variables[line] !== undefined) {
-          return variables[line];
-        }
-
-        // String literal
-        if (/^".*"$/.test(line)) {
-          return line.slice(1, -1);
-        }
-
-        // Built-in functions
-        if (/^print\(".*"\)$/.test(line)) {
-          return line.slice(7, -2);
-        }
-
-        if (/^clear\(\)$/.test(line)) {
-          output = "";
-          return "";
-        }
-
-        if (/^uppercase\(".*"\)$/.test(line)) {
-          return line.slice(10, -2).toUpperCase();
-        }
-
-        if (/^lowercase\(".*"\)$/.test(line)) {
-          return line.slice(10, -2).toLowerCase();
-        }
-
-        if (/^reverse\(".*"\)$/.test(line)) {
-          return line.slice(9, -2).split("").reverse().join("");
-        }
-
-        // Arithmetic
-        try {
-          return eval(line);
-        } catch {
-          return `[Error] Invalid syntax: ${line}`;
-        }
-      }
-
-      for (const line of lines) {
-        if (line.trim() === "") continue;
-        const result = await evaluate(line);
-        if (result !== "") output += result + "\n";
-      }
-
-      document.getElementById("output").textContent = output;
+    function toggleTheme() {
+      document.body.classList.toggle("light");
+      const isLight = document.body.classList.contains("light");
+      editor.setOption("theme", isLight ? "eclipse" : "dracula");
     }
+
+    function interpretLumen(line, variables) {
+      line = line.trim();
+      if (/^\w+\s*=\s*".*"$/.test(line)) {
+        const [key, val] = line.split("=").map(x => x.trim());
+        variables[key] = val.slice(1, -1);
+        return "";
+      } else if (/^\d+(?:\s*[+\-*/]\s*\d+)+$/.test(line)) {
+        return eval(line);
+      } else if (/^print\"(.*)\"$/.test(line)) {
+        return RegExp.$1;
+      } else if (/^".*"$/.test(line)) {
+        return line.slice(1, -1);
+      } else if (/^uppercase\"(.*)\"$/.test(line)) {
+        return RegExp.$1.toUpperCase();
+      } else if (/^lowercase\"(.*)\"$/.test(line)) {
+        return RegExp.$1.toLowerCase();
+      } else if (/^reverse\"(.*)\"$/.test(line)) {
+        return RegExp.$1.split('').reverse().join('');
+      } else if (variables[line]) {
+        return variables[line];
+      } else {
+        return `Syntax error: ${line}`;
+      }
+    }
+
+    function processCommand(cmd) {
+      output.textContent += `\n> ${cmd}`;
+      if (cmd === "/help") help.style.display = help.style.display === "none" ? "block" : "none";
+      else if (cmd === "/commands") commands.style.display = commands.style.display === "none" ? "block" : "none";
+      else if (cmd === "/clear_o") output.textContent = "";
+      else if (cmd === "/clear_all") {
+        if (confirm("Are you sure you want to clear all code?")) {
+          if (confirm("This action cannot be undone. Proceed?")) editor.setValue("");
+        }
+      }
+      else if (cmd.startsWith("/del line")) {
+        const lineNum = parseInt(cmd.replace("/del line", "")) - 1;
+        const lines = editor.getValue().split("\n");
+        if (!isNaN(lineNum) && lineNum >= 0 && lineNum < lines.length) {
+          lines.splice(lineNum, 1);
+          editor.setValue(lines.join("\n"));
+        }
+      }
+      else if (cmd === "/console") consoleLog.style.display = consoleLog.style.display === "none" ? "block" : "none";
+      else if (cmd === "/lighting_toggle") toggleTheme();
+      else if (cmd === "/run") {
+        const lines = editor.getValue().split("\n");
+        const vars = {};
+        for (const line of lines) {
+          const result = interpretLumen(line, vars);
+          if (result !== "") output.textContent += `\n${result}`;
+        }
+      }
+      else {
+        const vars = {};
+        const result = interpretLumen(cmd, vars);
+        if (result !== "") output.textContent += `\n${result}`;
+      }
+    }
+
+    codeInput.addEventListener("keydown", function(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        processCommand(codeInput.value);
+        codeInput.value = "";
+      }
+    });
   </script>
 </body>
 </html>
